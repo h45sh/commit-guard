@@ -98,6 +98,20 @@ HEURISTIC_RULES = [
         "regex": re.compile(r"\bAIza[0-9A-Za-z\\-_]{35}\b"),
     },
     {
+        "id": "SECRET_STRIPE_KEY",
+        "category": "Pillar 2: Security",
+        "severity": "BLOCK",
+        "description": "Live Stripe Secret or Restricted API Key",
+        "regex": re.compile(r"\b(sk_live|rk_live)_[0-9a-zA-Z]{24,}\b"),
+    },
+    {
+        "id": "SECRET_SLACK_TOKEN",
+        "category": "Pillar 2: Security",
+        "severity": "BLOCK",
+        "description": "Slack API / Bot Token",
+        "regex": re.compile(r"\bxox[baprs]-[0-9a-zA-Z]{10,}\b"),
+    },
+    {
         "id": "SECRET_GENERIC_KEY",
         "category": "Pillar 2: Security",
         "severity": "BLOCK",
@@ -105,7 +119,7 @@ HEURISTIC_RULES = [
         "regex": re.compile(r"(password|passwd|secret|api_key|apikey|bearer)\s*[:=]\s*['\"][A-Za-z0-9_\-\.]{16,}['\"]", re.IGNORECASE),
     },
 
-    # 3. Cryptography Hygiene (NIST SP 800-175B)
+    # 3. Cryptography & Injection Hygiene
     {
         "id": "CRYPTO_WEAK_HASH",
         "category": "Pillar 2: Security & Crypto",
@@ -122,8 +136,76 @@ HEURISTIC_RULES = [
         "code_only": True,
         "regex": re.compile(r"['\"](des|3des|rc4|blowfish|aes-[0-9]{3}-ecb)['\"]", re.IGNORECASE),
     },
+    {
+        "id": "CRYPTO_INSECURE_JWT",
+        "category": "Pillar 2: Security & Crypto",
+        "severity": "BLOCK",
+        "description": "Unverified JWT signature or 'none' algorithm",
+        "code_only": True,
+        "regex": re.compile(r"(jwt\.decode\s*\(.*verify\s*=\s*False|algorithm\s*=\s*['\"]none['\"])", re.IGNORECASE),
+    },
+    {
+        "id": "INJECTION_RAW_SQL",
+        "category": "Pillar 2: Security",
+        "severity": "BLOCK",
+        "description": "Potential raw SQL string concatenation or unescaped interpolation",
+        "code_only": True,
+        "regex": re.compile(r"(f['\"]SELECT\s+.*\{|['\"]SELECT\s+.*['\"]\s*\+\s*|query\s*=\s*['\"]SELECT\s+.*['\"]\s*%)", re.IGNORECASE),
+    },
+    {
+        "id": "INJECTION_COMMAND_SHELL",
+        "category": "Pillar 2: Security",
+        "severity": "BLOCK",
+        "description": "Dangerous shell execution invocation",
+        "code_only": True,
+        "regex": re.compile(r"(os\.system\s*\(|subprocess\.(Popen|run|call)\s*\(.*shell\s*=\s*True|child_process\.exec\s*\()"),
+    },
+    {
+        "id": "UNSAFE_DESERIALIZATION",
+        "category": "Pillar 2: Security",
+        "severity": "BLOCK",
+        "description": "Unsafe payload deserialization (pickle, un-safe yaml, or Marshal)",
+        "code_only": True,
+        "regex": re.compile(r"(pickle\.loads?\s*\(|yaml\.load\s*\([^,)]*\)|Marshal\.load\s*\()"),
+    },
 
-    # 4. Robustness & Anti-Patterns
+    # 4. System Integrity & Git Hygiene
+    {
+        "id": "GIT_CONFLICT_MARKER",
+        "category": "Pillar 3: System Integrity",
+        "severity": "BLOCK",
+        "description": "Unresolved Git merge conflict marker",
+        "code_only": False,
+        "regex": re.compile(r"^(<{7}|={7}|>{7})(\s|$)"),
+    },
+    {
+        "id": "LEFTOVER_LOCALHOST_URL",
+        "category": "Pillar 3: System Integrity",
+        "severity": "WARN",
+        "description": "Hardcoded localhost or loopback URL (verify environment configurability)",
+        "code_only": True,
+        "regex": re.compile(r"https?://(localhost|127\.0\.0\.1):[0-9]{2,5}"),
+    },
+
+    # 5. Infrastructure & Container Hygiene
+    {
+        "id": "DOCKER_UNPINNED_LATEST",
+        "category": "Compliance: Supply Chain & Infra",
+        "severity": "WARN",
+        "description": "Docker base image using unpinned floating :latest tag",
+        "code_only": True,
+        "regex": re.compile(r"^FROM\s+[a-zA-Z0-9_\-\./]+:latest\b"),
+    },
+    {
+        "id": "CI_UNSAFE_PR_TRIGGER",
+        "category": "Compliance: Supply Chain & CI",
+        "severity": "WARN",
+        "description": "GitHub Actions pull_request_target trigger (verify fork checkout security)",
+        "code_only": False,
+        "regex": re.compile(r"^\s*pull_request_target\s*:"),
+    },
+
+    # 6. Robustness & Anti-Patterns
     {
         "id": "SWALLOWED_EXCEPTION_PY",
         "category": "Pillar 5: Robustness",

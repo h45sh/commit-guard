@@ -1,6 +1,6 @@
-# Commit Guard: Standard Compliance Catalog
+# Commit Guard: Comprehensive Industry Compliance Catalog
 
-This catalog outlines the established software industry standards and compliance frameworks enforced by `commit-guard`. Changes should adhere to these specifications across versioning, releases, security, documentation, privacy, and licensing.
+This catalog outlines standard software industry regulations, frameworks, and engineering standards enforced by `commit-guard`. Code changes should satisfy these specifications across versioning, releases, security, documentation, privacy, accessibility, and supply chain.
 
 ---
 
@@ -9,16 +9,16 @@ This catalog outlines the established software industry standards and compliance
 ### 1.1 Semantic Versioning 2.0.0 (SemVer)
 Adhere strictly to [Semantic Versioning 2.0.0](https://semver.org/):
 Given a version number `MAJOR.MINOR.PATCH`, increment the:
-* **`MAJOR` version** when you make incompatible API changes or breaking schema modifications.
+* **`MAJOR` version** when you make incompatible API changes, breaking schema modifications, or remove deprecated endpoints.
 * **`MINOR` version** when you add functionality in a backward-compatible manner.
 * **`PATCH` version** when you make backward-compatible bug fixes or security patches.
-* **Pre-release tags**: Format as `1.0.0-alpha.1`, `1.0.0-beta.2`, `1.0.0-rc.1`.
+* **Pre-release identifiers**: Format as `1.0.0-alpha.1`, `1.0.0-beta.2`, `1.0.0-rc.1`.
 * **Build metadata**: Format as `1.0.0+20261110.build42`.
 
 ### 1.2 Git Tagging Conventions
 * **Tag Format**: Always prefix release tags with `v` followed by valid SemVer (`v1.2.3`).
-* **Annotated Tags**: Production releases must use annotated tags (`git tag -a v1.2.3 -m "Release v1.2.3"`), never lightweight tags, ensuring timestamp, tagger identity, and release summary are captured.
-* **Signed Tags**: Where required by organization policy, sign release tags with GPG/SSH keys (`git tag -s v1.2.3`).
+* **Annotated Tags**: Production releases must use annotated tags (`git tag -a v1.2.3 -m "Release v1.2.3"`), never lightweight tags, ensuring timestamp, tagger identity, and release notes are recorded in the git object graph.
+* **Signed Tags**: Where required by organization policy, sign release tags with cryptographic keys (`git tag -s v1.2.3`).
 
 ### 1.3 Conventional Commits 1.0.0
 Follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification:
@@ -96,60 +96,72 @@ Explicitly check for the top ranked weaknesses:
 
 ---
 
-## 3. Privacy & Telemetry Compliance (GDPR / CCPA)
+## 3. Regulatory & Enterprise Security Frameworks
 
-### 3.1 Personally Identifiable Information (PII) Protection
+### 3.1 SOC 2 Type II Controls (Trust Services Criteria)
+* **CC6.1 (Logical Access Security)**: Zero hardcoded credentials, API keys, or master passwords in version control. Access tokens must be injected via secure secret managers at runtime.
+* **CC6.6 (Boundary Protection)**: Demarcate internal vs. external service boundaries; internal admin utilities or debug endpoints must not be exposed to the public internet.
+* **CC7.2 (Monitoring & Audit Trails)**: Security-relevant events (authentication failures, permission changes, administrative actions, password resets) must emit structured audit logs with timestamp, actor, action, and target.
+* **CC8.1 (Change Management)**: All modifications must trace back to an authorized commit/PR with code review and passing automated tests.
+
+### 3.2 PCI-DSS v4.0 (Payment Card Industry Data Security Standard)
+* **Requirement 3 (Protect Stored Account Data)**:
+  * Primary Account Numbers (PAN) must be rendered unreadable anywhere they are stored (using strong cryptography, truncation, or tokenization).
+  * Sensitive Authentication Data (SAD)—including card verification values (CVV/CVC) and PINs—must NEVER be retained after payment authorization.
+  * Account data must NEVER be emitted into application logs, error traces, or crash reports.
+* **Requirement 6 (Develop and Maintain Secure Systems)**:
+  * Address common coding vulnerabilities in software-development processes prior to production release.
+
+### 3.3 HIPAA Security Rule (45 CFR Part 164)
+* **§ 164.312(a)(1) Access Control**: Enforce unique user identification and emergency access procedures before accessing Electronic Protected Health Information (ePHI).
+* **§ 164.312(c)(1) Integrity**: Protect ePHI from improper alteration or destruction.
+* **§ 164.312(e)(1) Transmission Security**: ePHI must be encrypted in transit over public and private networks using strong encryption protocols (TLS 1.2+).
+* **Zero ePHI in Logs**: Patient names, medical record numbers, diagnoses, or contact information must never appear in application logs or standard error streams.
+
+---
+
+## 4. Privacy & Telemetry Compliance (GDPR / CCPA)
+
+### 4.1 Personally Identifiable Information (PII) Protection
 * **Log Sanitization**: Logs, error traces, and console outputs must NEVER contain PII:
   * Full names, email addresses, phone numbers.
   * Passwords, PINs, auth tokens, session cookies, API keys.
-  * Credit card numbers (PCI-DSS compliance requires zero cardholder data in logs).
-  * Social security numbers, national ID numbers, health records (HIPAA compliance).
+  * Social security numbers, national ID numbers, tax IDs.
 * **Telemetry & Analytics**:
   * Respect user consent flags (opt-in/opt-out).
   * Anonymize or hash IP addresses and device IDs before transmitting to external analytics.
+* **Data Minimization (GDPR Art. 5)**: Only collect and store fields strictly necessary for the specified purpose. Avoid collecting broad demographic metadata "just in case."
 
 ---
 
-## 4. Documentation & Architectural Governance
+## 5. Web Accessibility Standards (WCAG 2.1 & 2.2 AA)
 
-### 4.1 Architecture Decision Records (ADRs)
-* When a commit introduces:
-  * A new third-party dependency, framework, or architectural pattern,
-  * A change to database technology or persistence model,
-  * A major shift in API communication protocols (e.g., REST to gRPC or GraphQL),
-  * **Requirement**: An ADR document must accompany the change in `docs/adr/` stating Title, Status, Context, Decision, and Consequences.
-
-### 4.2 API Contract & Interface Documentation
-* **OpenAPI / Swagger 3.0+**: Public HTTP endpoints must update their OpenAPI schema specifications.
-* **Docstrings & Types**:
-  * Python: PEP 257 docstrings and PEP 484 type hints on all public interfaces.
-  * TypeScript / JavaScript: TSDoc / JSDoc annotations for exported functions, types, and interfaces.
-  * Go: GoDoc comments on all exported types, functions, and packages.
-  * Rust: Rustdoc (`///`) on all `pub` structs, traits, and functions.
-
-### 4.3 Deprecation & Migration Notices
-* If an existing interface, parameter, or behavior is modified or marked for removal:
-  * Mark with explicit `@deprecated` annotation or warning.
-  * Document the replacement method and expected version of removal.
-  * Provide a clear migration guide in release notes or documentation.
+When code introduces or updates user interfaces:
+* **Guideline 1.1 (Text Alternatives)**: All non-text content (`<img>`, `<svg>`, `<canvas>`) has a text alternative (`alt="..."` or `aria-label`).
+* **Guideline 1.4 (Distinguishable & Contrast)**: Text has a contrast ratio of at least 4.5:1 against its background (3:1 for large text $\ge 18$pt).
+* **Guideline 2.1 (Keyboard Accessible)**: All functionality is operable through a keyboard interface without requiring specific timings.
+* **Guideline 2.4 (Navigable)**: Web pages and dialogs have titles, focus order is logical, and focus is never trapped inside non-modal components.
+* **Guideline 4.1 (Compatible)**: Valid markup with unique `id` attributes, correct ARIA roles, and state synchronization (`aria-expanded`, `aria-selected`).
 
 ---
 
-## 5. Licensing, Attribution & Supply Chain
+## 6. Supply Chain & Release Security (SLSA & SPDX)
 
-### 5.1 SPDX License Identifiers
-* Every newly introduced source file should declare its license using a standard SPDX identifier at the top of the file:
+### 6.1 SLSA (Supply-chain Levels for Software Artifacts v1.0)
+* **Build Integrity**: Builds must be automated and defined in code (e.g. GitHub Actions, Cloud Build).
+* **Hermetic & Isolated Builds**: Build steps must not download unpinned floating dependencies or execute unverified third-party scripts.
+* **Provenance**: Verify software artifacts can be traced back to the exact source commit and build configuration.
+
+### 6.2 SPDX License Identifiers (SPDX 2.3/3.0)
+* Every newly introduced source file should declare its license using a standard SPDX identifier at the top:
   ```
   // SPDX-License-Identifier: MIT
   // or
   # SPDX-License-Identifier: Apache-2.0
   ```
 
-### 5.2 License Compatibility
-* **Permissive Licenses** (MIT, Apache-2.0, BSD-2/3-Clause, ISC): Can generally be incorporated into any project.
+### 6.3 License Compatibility & Dependency Hygiene
+* **Permissive Licenses** (MIT, Apache-2.0, BSD-2/3-Clause, ISC): Compatible with modern closed-source and open-source applications.
 * **Copyleft Licenses** (GPLv2, GPLv3, AGPLv3): Must NOT be silently imported or copied into non-copyleft or proprietary codebases without legal review.
-
-### 5.3 Supply Chain & Dependency Hygiene
-* **Lockfiles**: Any change to dependencies must include the corresponding lockfile update (`package-lock.json`, `poetry.lock`, `Cargo.lock`, `go.sum`).
-* **Version Pinning**: Avoid wildcard or open-ended dependency versions (e.g. `*`, `latest`). Pin specific minor/patch ranges (`^1.2.3` or `~1.2.3`).
-* **SBOM (Software Bill of Materials)**: Projects adhering to Executive Order 14028 / CycloneDX / SPDX must ensure all new direct dependencies are trackable.
+* **Lockfiles**: Any change to package manifests (`package.json`, `pyproject.toml`, `Cargo.toml`) MUST commit the corresponding lockfile (`package-lock.json`, `poetry.lock`, `Cargo.lock`) to ensure deterministic supply chain reproducibility.
+* **Version Pinning**: Avoid wildcard versions (`*`, `latest`). Use pinned semantic ranges.
