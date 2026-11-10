@@ -115,3 +115,23 @@ Nothing lowers codebase velocity and reliability faster than accumulated bloat, 
 - [ ] **Coverage of New Paths**: Are both happy paths and edge/error cases covered with unit or integration tests?
 - [ ] **Preservation of Existing Tests**: Were any existing tests deleted, bypassed, or modified to make a broken build pass?
 - [ ] **Deterministic Tests**: Do new tests avoid relying on external network calls, system clocks, or race-prone sleep timers?
+
+---
+
+## Pillar 7: Documentation & Contract Completeness
+
+*(See [DOCUMENTATION.md](DOCUMENTATION.md) for full formatting rules and templates)*
+
+### 7.1 In-Code Documentation & Docstrings
+- [ ] **Public Interface Commentary**: Are all newly exported functions, methods, classes, and types documented with parameter descriptions, return types, and possible exceptions/errors (following Google Python Style, TSDoc, Rustdoc, or GoDoc)?
+- [ ] **Invariants & Edge Cases**: Are non-obvious algorithms, security boundaries, or concurrency locks documented with inline commentary explaining *why* the implementation was chosen?
+
+### 7.2 API Contracts & Schema Synchronization
+- [ ] **OpenAPI / Swagger Sync**: If HTTP endpoints or payloads changed, is `openapi.yaml` or Swagger specification updated?
+- [ ] **Schema Migrations & Models**: Are GraphQL SDL, Protobuf definitions, or database models synchronized with the code changes?
+- [ ] **Deprecation Notices**: Are deprecated functions or fields marked with `@deprecated` tags stating migration alternatives?
+
+### 7.3 System & Architectural Documentation
+- [ ] **Architecture Decision Records (ADRs)**: If introducing a new library, persistence layer, or structural pattern, is an ADR included in `docs/adr/`?
+- [ ] **README & Configuration Updates**: If new environment variables, configuration flags, or setup prerequisites were introduced, are they documented in `README.md`?
+- [ ] **Changelog**: Is `CHANGELOG.md` updated under `## [Unreleased]` using [Keep a Changelog](https://keepachangelog.com/) standards?

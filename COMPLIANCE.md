@@ -120,9 +120,43 @@ Explicitly check for the top ranked weaknesses:
 
 ---
 
-## 4. Privacy & Telemetry Compliance (GDPR / CCPA)
+## 4. Documentation & Governance Standards
 
-### 4.1 Personally Identifiable Information (PII) Protection
+*(See [DOCUMENTATION.md](DOCUMENTATION.md) for full implementation specifications and templates)*
+
+### 4.1 The Diátaxis Documentation Framework
+Organize project documentation into four quadrants:
+* **Tutorials** (learning-oriented lessons for beginners).
+* **How-To Guides** (task-oriented recipes for solving specific workflows).
+* **Reference** (authoritative technical descriptions, API contracts, CLI flags).
+* **Explanation** (architectural concepts, design decisions, trade-offs).
+
+### 4.2 Repository & Module README Standards (Standard Readme)
+* Every repo/module must have a `README.md` containing: Pitch/Summary, Architecture Overview, Prerequisites, Installation, Quick Start / Working Example, Configuration Table, CLI/API Reference, Testing commands, Contributing, and License.
+
+### 4.3 In-Code Documentation & Docstrings
+* **Python**: PEP 257 & Google Python Style Guide docstrings (`Args:`, `Returns:`, `Raises:`).
+* **TypeScript / JavaScript**: TSDoc / JSDoc conventions (`@param`, `@returns`, `@throws`, `@example`).
+* **Rust**: Rustdoc RFC 1574 (`///`, `# Examples`, `# Errors`, `# Panics`, `# Safety`).
+* **Go**: Effective Go / GoDoc package and symbol commentary.
+
+### 4.4 API & Schema Contracts
+* **OpenAPI 3.0 / 3.1**: Complete path schemas, request bodies, error response models, and `@deprecated` annotations.
+* **AsyncAPI**: Message channel payload schemas for event queues and WebSockets.
+* **GraphQL**: SDL descriptions and `@deprecated` directives on fields.
+* **Protocol Buffers**: Proto3 comments and `reserved` field tags for removed fields.
+
+### 4.5 Architectural Decision Records (ADRs - MADR Standard)
+* Any major architectural change, persistence modification, or new library must include an ADR in `docs/adr/` capturing Context, Decision Drivers, Considered Options, and Consequences.
+
+### 4.6 Operational Documentation & Runbooks
+* Services must maintain `CHANGELOG.md` ([Keep a Changelog](https://keepachangelog.com/)), `SECURITY.md` (vulnerability disclosure policy), and production triage runbooks.
+
+---
+
+## 5. Privacy & Telemetry Compliance (GDPR / CCPA)
+
+### 5.1 Personally Identifiable Information (PII) Protection
 * **Log Sanitization**: Logs, error traces, and console outputs must NEVER contain PII:
   * Full names, email addresses, phone numbers.
   * Passwords, PINs, auth tokens, session cookies, API keys.
@@ -134,7 +168,7 @@ Explicitly check for the top ranked weaknesses:
 
 ---
 
-## 5. Web Accessibility Standards (WCAG 2.1 & 2.2 AA)
+## 6. Web Accessibility Standards (WCAG 2.1 & 2.2 AA)
 
 When code introduces or updates user interfaces:
 * **Guideline 1.1 (Text Alternatives)**: All non-text content (`<img>`, `<svg>`, `<canvas>`) has a text alternative (`alt="..."` or `aria-label`).
@@ -145,14 +179,14 @@ When code introduces or updates user interfaces:
 
 ---
 
-## 6. Supply Chain & Release Security (SLSA & SPDX)
+## 7. Supply Chain & Release Security (SLSA & SPDX)
 
-### 6.1 SLSA (Supply-chain Levels for Software Artifacts v1.0)
+### 7.1 SLSA (Supply-chain Levels for Software Artifacts v1.0)
 * **Build Integrity**: Builds must be automated and defined in code (e.g. GitHub Actions, Cloud Build).
 * **Hermetic & Isolated Builds**: Build steps must not download unpinned floating dependencies or execute unverified third-party scripts.
 * **Provenance**: Verify software artifacts can be traced back to the exact source commit and build configuration.
 
-### 6.2 SPDX License Identifiers (SPDX 2.3/3.0)
+### 7.2 SPDX License Identifiers (SPDX 2.3/3.0)
 * Every newly introduced source file should declare its license using a standard SPDX identifier at the top:
   ```
   // SPDX-License-Identifier: MIT
@@ -160,7 +194,7 @@ When code introduces or updates user interfaces:
   # SPDX-License-Identifier: Apache-2.0
   ```
 
-### 6.3 License Compatibility & Dependency Hygiene
+### 7.3 License Compatibility & Dependency Hygiene
 * **Permissive Licenses** (MIT, Apache-2.0, BSD-2/3-Clause, ISC): Compatible with modern closed-source and open-source applications.
 * **Copyleft Licenses** (GPLv2, GPLv3, AGPLv3): Must NOT be silently imported or copied into non-copyleft or proprietary codebases without legal review.
 * **Lockfiles**: Any change to package manifests (`package.json`, `pyproject.toml`, `Cargo.toml`) MUST commit the corresponding lockfile (`package-lock.json`, `poetry.lock`, `Cargo.lock`) to ensure deterministic supply chain reproducibility.

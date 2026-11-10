@@ -29,8 +29,9 @@ An uncompromising pre-commit auditor and change review skill for AI agents and d
 ```
 commit-guard/
 ├── SKILL.md              # Main Agent skill entrypoint
-├── CHECKLIST.md          # In-depth inspection criteria across all 6 core pillars
+├── CHECKLIST.md          # In-depth inspection criteria across all 7 core pillars
 ├── DOMAINS.md            # Subsystem deep dives (AI/LLM, Docker/CI, APIs, Concurrency, WCAG)
+├── DOCUMENTATION.md      # Comprehensive documentation standards (Diátaxis, TSDoc/PEP 257, OpenAPI, ADRs)
 ├── COMPLIANCE.md         # Industry standards & compliance catalog (SemVer, OWASP, NIST, SOC 2, PCI, HIPAA, SLSA)
 ├── REPORT-FORMAT.md      # Standardized audit report template
 ├── scripts/
@@ -90,7 +91,7 @@ python3 /path/to/commit-guard/scripts/install_hook.py --uninstall
 
 ---
 
-## The 6 Core Pillars
+## The 7 Core Pillars
 
 1. **Dead, Bloat & Unnecessary Code (Top Priority)**: Debug artifacts, orphaned logic, YAGNI over-engineering, code duplication.
 2. **Security & Cryptography Hygiene**: Zero hardcoded secrets, authenticated encryption (AES-GCM/ChaCha20), no MD5/SHA1/DES, injection prevention.
@@ -98,6 +99,17 @@ python3 /path/to/commit-guard/scripts/install_hook.py --uninstall
 4. **Efficiency & Performance**: Algorithmic complexity, resource lifecycle management, unclosed streams, N+1 queries.
 5. **Code Design & Robustness**: Robust error handling (no swallowed exceptions), fail-fast validation, clean types.
 6. **Test Coverage & Regression Guard**: Test coverage on new branches, preservation of existing test suites.
+7. **Documentation & Contract Completeness**: In-code docstrings, OpenAPI/schema synchronization, Architecture Decision Records (ADRs), README updates.
+
+---
+
+## Documentation Standards (`DOCUMENTATION.md`)
+
+- **Diátaxis Framework**: 4-quadrant documentation architecture (Tutorials, How-To Guides, Reference, Explanation).
+- **In-Code Docstrings**: Language-specific best practices (Google Python Style PEP 257, TSDoc, Rustdoc RFC 1574, Effective Go).
+- **API & Schemas**: OpenAPI 3.0/3.1 specs, AsyncAPI message events, GraphQL SDL, Protobuf (Proto3).
+- **Architecture Decisions**: Michael Nygard / MADR template for Architecture Decision Records in `docs/adr/`.
+- **Project Governance**: Keep a Changelog 1.1.0, Coordinated Vulnerability Disclosure (`SECURITY.md`), and Production Runbooks.
 
 ---
 

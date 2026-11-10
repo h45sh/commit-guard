@@ -53,17 +53,23 @@ Examine all added and modified lines against the standards defined in:
   * **Pillar 4: Efficiency & Performance** — $O(N^2)$ loops, N+1 queries, unclosed resources, sync calls in async loops.
   * **Pillar 5: Code Design & Error Handling** — swallowed exceptions, fragile typing, bad naming.
   * **Pillar 6: Tests & Regression Guard** — deleted or weakened tests, missing coverage on new paths.
+  * **Pillar 7: Documentation & Contract Completeness** — in-code docstrings, OpenAPI/schema synchronization, ADRs, README config updates.
 * **[DOMAINS.md](DOMAINS.md)**:
   * **AI & LLM Systems** — prompt injection, tool calling authorization, context/token bloat, loop bounding.
   * **Infrastructure & CI/CD** — Dockerfile root user/unpinned tags, GitHub Actions `pull_request_target`, secret mounts.
   * **API & Networking** — mutation idempotency (`Idempotency-Key`), SSRF, request timeouts, payload limits.
   * **Concurrency & Resources** — TOCTOU, race conditions, connection pool starvation, memory leak prevention.
   * **Frontend & Accessibility** — WCAG 2.1/2.2 AA (image alts, keyboard focus, form labels, ARIA state).
+* **[DOCUMENTATION.md](DOCUMENTATION.md)**:
+  * **Diátaxis Framework**: Tutorials, How-To Guides, Reference, and Explanation architecture.
+  * **In-Code Docstrings**: PEP 257 & Google Style, TSDoc, Rustdoc RFC 1574, Effective Go.
+  * **Contract Schemas**: OpenAPI 3.0/3.1, AsyncAPI, GraphQL SDL, Protobuf (Proto3).
+  * **Architecture & Ops**: Architecture Decision Records (MADR format), Runbooks, and Keep a Changelog.
 * **[COMPLIANCE.md](COMPLIANCE.md)**:
   * **Versioning & Commits**: Semantic Versioning 2.0.0, Conventional Commits 1.0.0, Keep a Changelog.
   * **Security Frameworks**: OWASP Top 10 / API Top 10, NIST SP 800-175B Cryptography, CWE Top 25.
   * **Enterprise Regulations**: SOC 2 Type II, PCI-DSS v4.0, HIPAA Security Rule, GDPR/CCPA Zero PII in logs.
-  * **Supply Chain & Docs**: SLSA v1.0, SPDX license identifiers, ADR requirements, OpenAPI synchronization.
+  * **Supply Chain & Governance**: SLSA v1.0, SPDX license identifiers, ADR requirements, OpenAPI synchronization.
 
 ### Automated Git Hook Integration
 
