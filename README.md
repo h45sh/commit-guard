@@ -83,4 +83,4 @@ python3 scripts/inspect_diff.py --scope uncommitted --json
 
 ## License
 
-[MIT](LICENSE) © 2026 Harsh Vardhan
+[MIT](LICENSE) © 2026 h45sh
