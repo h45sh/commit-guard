@@ -13,7 +13,7 @@ An uncompromising full-lifecycle codebase and commit integrity auditor for AI ag
 - **Dual Operating Modes**:
   - **`inspect-commit`**: Instant (<1.5s) pre-commit/PR check focusing on diffs and staged lines.
   - **`inspect-codebase`**: Whole-system architectural sweep analyzing AST structures, dependency DAGs, and Git churn hotspots.
-- **Architectural & System Integrity (CyGuide Principles)**:
+- **Architectural & System Integrity (Clean Architecture & Deep Modules)**:
   - **Downwards-Only Layer Hierarchy**: Strict Directed Acyclic Graph (DAG) dependency enforcement ($\text{UI} \to \text{Coordination} \to \text{Engine} \to \text{Domain/Schemas}$).
   - **Pure Core, Imperative Shell (FC/IS)**: Keeps business logic, parsers, and recommendation rules 100% pure; pushes DB and network I/O to the shell.
   - **Clean Seams & Zero Private State Leaks**: Enforces encapsulation; forbids external access to `obj._private` attributes/methods.
@@ -89,7 +89,7 @@ python3 scripts/code_guard.py --mode commit --scope uncommitted --json
 python3 scripts/code_guard.py --mode codebase --path . --hotspots
 
 # Audit specific subsystem
-python3 scripts/code_guard.py --mode codebase --path ./cyguide
+python3 scripts/code_guard.py --mode codebase --path ./src
 
 # Generate baseline on legacy repository
 python3 scripts/code_guard.py --mode codebase --generate-baseline .codeguard-baseline.json
@@ -113,8 +113,8 @@ Customize layers, pure paths, and exclusions for your project:
     "ui": { "can_import": ["adapters", "domain"] }
   },
   "pure_paths": [
-    "cyguide/rules/*",
-    "cyguide/schemas/*",
+    "src/rules/*",
+    "src/schemas/*",
     "src/domain/*"
   ],
   "migrations_dir": "migrations"

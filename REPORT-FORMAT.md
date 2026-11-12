@@ -42,8 +42,8 @@
 | :-: | :--- | :--- | :--- |
 | **B1** | `Pillar 1: Bloat/Debug` | [`path/to/file.ts:42`](file:///path/to/file.ts#L42) | Leftover `console.log` debug statement |
 | **B2** | `Pillar 2: Security` | [`path/to/auth.py:88`](file:///path/to/auth.py#L88) | Hardcoded API secret key detected |
-| **B3** | `Pillar 3: Architecture` | [`cyguide/schemas/job.py:12`](file:///cyguide/schemas/job.py#L12) | Upward layer import: `schemas` importing `engine` |
-| **B4** | `Pillar 3: Seams` | [`cyguide/ui/screen.py:64`](file:///cyguide/ui/screen.py#L64) | Leaked private state: calling `engine._active_jobs` |
+| **B3** | `Pillar 3: Architecture` | [`src/schemas/job.py:12`](file:///src/schemas/job.py#L12) | Upward layer import: `schemas` importing `engine` |
+| **B4** | `Pillar 3: Seams` | [`src/ui/screen.py:64`](file:///src/ui/screen.py#L64) | Leaked private state: calling `engine._active_jobs` |
 
 ### 2.2 Warnings & Improvements (Review before merge)
 <!-- Include only if WARNING_COUNT > 0 -->
@@ -59,13 +59,13 @@
 ## 3. Deep Dive Findings & Concrete Fixes
 
 ### [B3] Upward Layer Dependency Violation
-* **Location**: [`cyguide/schemas/job.py:12`](file:///cyguide/schemas/job.py#L12)
+* **Location**: [`src/schemas/job.py:12`](file:///src/schemas/job.py#L12)
 * **Violation**: Pillar 3.1 (Downwards-Only Layer Hierarchy)
 * **Impact**: Creates cyclical coupling between domain models and runtime execution engine.
 * **Remediation**: Invert the dependency or pass the needed data as a pure primitive:
 
 ```diff
-- from cyguide.engine.executor import JobRunner
+- from app.engine.executor import JobRunner
 + from typing import Optional
 ```
 
@@ -125,9 +125,9 @@ Modules that change frequently and have high complexity represent the greatest a
 
 | Module / File | 90-Day Churn (Commits) | Complexity / LOC | Hotspot Risk Score | Recommended Action |
 | :--- | :---: | :---: | :---: | :--- |
-| [`cyguide/engine/executor.py`](file:///cyguide/engine/executor.py) | 42 | 480 LOC | 🔴 HIGH (88) | Deepen facade; encapsulate process watchdogs |
-| [`cyguide/ui/cockpit.py`](file:///cyguide/ui/cockpit.py) | 35 | 620 LOC | 🟡 MEDIUM (65) | Move business rules out of UI callbacks |
-| [`cyguide/rules/network.py`](file:///cyguide/rules/network.py) | 18 | 150 LOC | 🟢 LOW (22) | Healthy pure core |
+| [`src/engine/executor.py`](file:///src/engine/executor.py) | 42 | 480 LOC | 🔴 HIGH (88) | Deepen facade; encapsulate process watchdogs |
+| [`src/ui/dashboard.py`](file:///src/ui/dashboard.py) | 35 | 620 LOC | 🟡 MEDIUM (65) | Move business rules out of UI callbacks |
+| [`src/rules/network.py`](file:///src/rules/network.py) | 18 | 150 LOC | 🟢 LOW (22) | Healthy pure core |
 
 ---
 
@@ -147,8 +147,8 @@ For each shallow module identified, evaluate whether deleting the intermediate l
 
 <!-- Include exact import paths that violate the DAG -->
 ```
-[LAYER VIOLATION] cyguide/schemas/models.py:8
-  imports: cyguide.engine.executor (Engine layer cannot be imported by Schemas)
+[LAYER VIOLATION] src/schemas/models.py:8
+  imports: app.engine.executor (Engine layer cannot be imported by Schemas)
   fix: pass raw parameters or define an abstract schema contract.
 ```
 
