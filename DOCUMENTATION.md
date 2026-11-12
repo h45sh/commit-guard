@@ -1,6 +1,6 @@
-# Commit Guard: Comprehensive Documentation Standards
+# Code Guard: Comprehensive Documentation Standards
 
-Code without documentation is incomplete and creates maintenance debt. `commit-guard` enforces documentation standards across the codebase: from in-code docstrings and READMEs to formal Architecture Decision Records (ADRs), API schemas, and operational runbooks.
+Code without documentation is incomplete and creates maintenance debt. `code-guard` (formerly `commit-guard`) enforces documentation standards across the codebase: from in-code docstrings and READMEs to formal Architecture Decision Records (ADRs), API schemas, and operational runbooks.
 
 ---
 

@@ -1,6 +1,6 @@
-# Commit Guard: Comprehensive Industry Compliance Catalog
+# Code Guard: Comprehensive Industry Compliance Catalog
 
-This catalog outlines standard software industry regulations, frameworks, and engineering standards enforced by `commit-guard`. Code changes should satisfy these specifications across versioning, releases, security, documentation, privacy, accessibility, and supply chain.
+This catalog outlines standard software industry regulations, frameworks, and engineering standards enforced by `code-guard` (formerly `commit-guard`). Code changes and codebase architecture should satisfy these specifications across versioning, releases, security, documentation, privacy, accessibility, and supply chain.
 
 ---
 

@@ -1,41 +1,46 @@
-# Commit Guard 🛡️
+# Code Guard 🛡️
 
-An uncompromising pre-commit auditor and change review skill for AI agents and developers.
+An uncompromising full-lifecycle codebase and commit integrity auditor for AI agents and engineering teams.
 
-`commit-guard` enforces system and architectural integrity, security hygiene, cryptographic standards, performance efficiency, and industry compliances—with top priority placed on eliminating dead, bloat, and unnecessary code before it ever enters git history.
+`code-guard` (formerly `commit-guard`) prevents software entropy and technical rot by operating across two complementary scopes:
+1. **`inspect-commit` (Delta Mode)**: Lightning-fast pre-commit and PR gate that inspects modified lines for dead/debug code, exposed secrets, broken crypto, layer inversions, and regression risks.
+2. **`inspect-codebase` (Holistic Mode)**: Deep repository-wide audit that enforces architectural layering, module depth, logic purity (pure core vs. imperative shell), seam encapsulation, forward-only migrations, and churn hotspot risk.
 
 ---
 
 ## Features
 
+- **Dual Operating Modes**:
+  - **`inspect-commit`**: Instant (<1.5s) pre-commit/PR check focusing on diffs and staged lines.
+  - **`inspect-codebase`**: Whole-system architectural sweep analyzing AST structures, dependency DAGs, and Git churn hotspots.
+- **Architectural & System Integrity (CyGuide Principles)**:
+  - **Downwards-Only Layer Hierarchy**: Strict Directed Acyclic Graph (DAG) dependency enforcement ($\text{UI} \to \text{Coordination} \to \text{Engine} \to \text{Domain/Schemas}$).
+  - **Pure Core, Imperative Shell (FC/IS)**: Keeps business logic, parsers, and recommendation rules 100% pure; pushes DB and network I/O to the shell.
+  - **Clean Seams & Zero Private State Leaks**: Enforces encapsulation; forbids external access to `obj._private` attributes/methods.
+  - **Deep Modules & The Deletion Test**: Identifies shallow pass-through wrappers and enforces the **Two-Adapter Rule** (1 adapter = hypothetical seam, 2 adapters = real seam).
+  - **Forward-Only Migrations**: Prevents untracked DDL mutations and schema drift.
 - **Prioritized Dead & Bloat Code Detection**: Catches stray debug statements (`console.log`, `print`, `debugger`), commented-out code, orphaned functions, unused imports, pass-through indirection, and premature over-engineering (YAGNI).
 - **Security & Cryptography Hygiene**: Enforces NIST SP 800-175B standards (AES-GCM, SHA-256+, CSPRNGs, no weak ciphers or hashes), secret/credential leak prevention, and OWASP Top 10 / CWE Top 25 defenses.
-- **Architectural & System Integrity**: Guards layer boundaries, prevents cross-module leakage, checks circular dependencies, and assesses change blast radius.
 - **Efficiency & Performance**: Flags $O(N^2)$ lookups, unclosed resources/streams, N+1 query patterns, and synchronous calls in async event loops.
-- **Subsystem & Domain Guides**: Specialized checks for AI/LLM systems, Docker & CI/CD workflows, APIs & microservices, concurrency & race conditions, and WCAG accessibility.
-- **Comprehensive Industry Compliances**:
-  - **Versioning & Releases**: [SemVer 2.0.0](https://semver.org/), [Conventional Commits 1.0.0](https://www.conventionalcommits.org/), [Keep a Changelog 1.1.0](https://keepachangelog.com/).
-  - **Security & Cryptography**: OWASP Top 10 (2021), OWASP API Security Top 10 (2023), NIST SP 800-175B / 800-52, CWE / SANS Top 25.
-  - **Enterprise Regulations**: SOC 2 Type II, PCI-DSS v4.0, HIPAA Security Rule, GDPR/CCPA zero-PII in logs.
-  - **Supply Chain & Governance**: SLSA v1.0, SPDX license identifiers, Architecture Decision Records (ADRs), and OpenAPI sync.
+- **Test Suite Speed Budgets**: Enforces Tier 1 Pure In-Memory Unit tests (<2s) vs. Tier 2 Integration tests (<60s), flagging flaky sleeps (`time.sleep` banned).
+- **Baseline Ratchet Adoption**: Seamlessly onboard large existing codebases using `--generate-baseline` to capture technical debt and ratchet new changes without stopping development.
 - **Automated Local Git Hook**: Easily installs a `.git/hooks/pre-commit` hook to automatically block bad commits before they happen.
-- **Strict Verdicts**: Clear decisions (`🛑 BLOCK / FAIL`, `⚠️ WARN`, `✅ PASS`) with exact file links and before/after remediation diffs.
-- **Multi-Scope Flexibility**: Inspect uncommitted working tree changes, staged changes, branches/PRs, specific commits, or full codebases.
 
 ---
 
 ## Directory Structure
 
 ```
-commit-guard/
+code-guard/ (formerly commit-guard)
 ├── SKILL.md              # Main Agent skill entrypoint
 ├── CHECKLIST.md          # In-depth inspection criteria across all 7 core pillars
-├── DOMAINS.md            # Subsystem deep dives (AI/LLM, Docker/CI, APIs, Concurrency, WCAG)
+├── DOMAINS.md            # Subsystem deep dives (Architecture, AI/LLM, Docker/CI, APIs, Concurrency, WCAG)
 ├── DOCUMENTATION.md      # Comprehensive documentation standards (Diátaxis, TSDoc/PEP 257, OpenAPI, ADRs)
 ├── COMPLIANCE.md         # Industry standards & compliance catalog (SemVer, OWASP, NIST, SOC 2, PCI, HIPAA, SLSA)
-├── REPORT-FORMAT.md      # Standardized audit report template
+├── REPORT-FORMAT.md      # Dual-mode audit report templates (Delta and Architectural Health Scorecards)
 ├── scripts/
-│   ├── inspect_diff.py   # Deterministic diff extractor & regex heuristic scanner
+│   ├── code_guard.py     # Deterministic dual-mode scanner (commit + codebase + AST + baseline)
+│   ├── inspect_diff.py   # Backward-compatible wrapper forwarding to code_guard.py
 │   └── install_hook.py   # One-command git pre-commit hook installer
 ├── README.md             # Documentation
 └── LICENSE               # MIT License
@@ -50,79 +55,82 @@ commit-guard/
 Invoke directly in your agent conversation:
 
 ```text
-"Review my uncommitted changes with commit-guard."
+# Delta / Commit Audits
+"Review my uncommitted changes with code-guard."
 "Is my code ready to commit?"
 "Run a pre-commit audit on branch feature/auth against main."
-"Check for dead code and security flaws in my diff."
+
+# Whole-Codebase & Architectural Audits
+"Audit the codebase architecture with code-guard."
+"Inspect codebase for shallow modules and layer leaks."
+"Find deepening opportunities and churn hotspots."
 ```
 
-### 2. Standalone CLI Pre-Scan
+### 2. Standalone CLI Usage
 
-You can run the bundled Python scanner directly from the command line:
-
+#### A. Delta Mode (`inspect-commit`)
 ```bash
-# Scan uncommitted changes (staged + unstaged + untracked)
-python3 scripts/inspect_diff.py --scope uncommitted
+# Check working tree changes
+python3 scripts/code_guard.py --mode commit --scope uncommitted
 
-# Scan only staged changes
-python3 scripts/inspect_diff.py --scope staged
+# Check staged files
+python3 scripts/code_guard.py --mode commit --scope staged
 
-# Scan branch changes against main
-python3 scripts/inspect_diff.py --scope branch --base main
+# Check branch against main
+python3 scripts/code_guard.py --mode commit --scope branch --base main
 
-# Output structured JSON for automation or CI pipelines
-python3 scripts/inspect_diff.py --scope uncommitted --json
+# Output structured JSON
+python3 scripts/code_guard.py --mode commit --scope uncommitted --json
 ```
 
-### 3. Automated Git Pre-Commit Hook
-
-Install `commit-guard` as a local git hook in any repository:
-
+#### B. Whole-Codebase Mode (`inspect-codebase`)
 ```bash
-# Install hook in current repository
-python3 /path/to/commit-guard/scripts/install_hook.py
+# Audit full repository with Git churn hotspot analysis
+python3 scripts/code_guard.py --mode codebase --path . --hotspots
 
-# Install hook in a specific repository
-python3 /path/to/commit-guard/scripts/install_hook.py --repo /path/to/your/project
+# Audit specific subsystem
+python3 scripts/code_guard.py --mode codebase --path ./cyguide
 
-# Uninstall hook
-python3 /path/to/commit-guard/scripts/install_hook.py --uninstall
+# Generate baseline on legacy repository
+python3 scripts/code_guard.py --mode codebase --generate-baseline .codeguard-baseline.json
+
+# Audit with baseline ratchet (only reports NEW violations)
+python3 scripts/code_guard.py --mode codebase --baseline .codeguard-baseline.json
 ```
 
 ---
 
-## The 7 Core Pillars
+## Configuration (`.codeguard.json`)
 
-1. **Dead, Bloat & Unnecessary Code (Top Priority)**: Debug artifacts, orphaned logic, YAGNI over-engineering, code duplication.
-2. **Security & Cryptography Hygiene**: Zero hardcoded secrets, authenticated encryption (AES-GCM/ChaCha20), no MD5/SHA1/DES, injection prevention.
-3. **Architectural & System Integrity**: Boundary integrity, data encapsulation, blast radius control, schema migrations.
-4. **Efficiency & Performance**: Algorithmic complexity, resource lifecycle management, unclosed streams, N+1 queries.
-5. **Code Design & Robustness**: Robust error handling (no swallowed exceptions), fail-fast validation, clean types.
-6. **Test Coverage & Regression Guard**: Test coverage on new branches, preservation of existing test suites.
-7. **Documentation & Contract Completeness**: In-code docstrings, OpenAPI/schema synchronization, Architecture Decision Records (ADRs), README updates.
+Customize layers, pure paths, and exclusions for your project:
 
----
+```json
+{
+  "layers": {
+    "domain": { "can_import": [] },
+    "engine": { "can_import": ["domain"] },
+    "adapters": { "can_import": ["domain", "engine"] },
+    "ui": { "can_import": ["adapters", "domain"] }
+  },
+  "pure_paths": [
+    "cyguide/rules/*",
+    "cyguide/schemas/*",
+    "src/domain/*"
+  ],
+  "migrations_dir": "migrations"
+}
+```
 
-## Documentation Standards (`DOCUMENTATION.md`)
+## Inline Suppression
 
-- **Diátaxis Framework**: 4-quadrant documentation architecture (Tutorials, How-To Guides, Reference, Explanation).
-- **In-Code Docstrings**: Language-specific best practices (Google Python Style PEP 257, TSDoc, Rustdoc RFC 1574, Effective Go).
-- **API & Schemas**: OpenAPI 3.0/3.1 specs, AsyncAPI message events, GraphQL SDL, Protobuf (Proto3).
-- **Architecture Decisions**: Michael Nygard / MADR template for Architecture Decision Records in `docs/adr/`.
-- **Project Governance**: Keep a Changelog 1.1.0, Coordinated Vulnerability Disclosure (`SECURITY.md`), and Production Runbooks.
+Suppress intentional exceptions using inline comments:
 
----
-
-## Subsystem & Domain Coverage (`DOMAINS.md`)
-
-- **AI & LLM**: Prompt injection prevention, tool calling safety bounds, context bloat minimization.
-- **Containers & CI/CD**: Dockerfile non-root execution, base image pinning, GitHub Actions `pull_request_target` security.
-- **APIs & Networks**: Mutation idempotency (`Idempotency-Key`), SSRF defense, timeouts, rate limiting.
-- **Concurrency**: Race condition prevention, lock acquisition ordering, goroutine/promise leak prevention.
-- **Accessibility**: WCAG 2.1/2.2 AA compliant keyboard navigation, form labeling, image alt text.
+* Python: `# codeguard: ignore[RULE_ID]`
+* TypeScript / JavaScript / Go / Rust: `// codeguard-ignore RULE_ID`
+* HTML / Markdown: `<!-- codeguard-ignore RULE_ID -->`
 
 ---
 
 ## License
 
-[MIT](LICENSE) © 2026 h45sh
+MIT © 2026
