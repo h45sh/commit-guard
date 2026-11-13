@@ -179,7 +179,7 @@ UNIVERSAL_RULES = [
         "severity": "BLOCK",
         "description": "External access to private attribute/method (violates clean seams)",
         "code_only": True,
-        "regex": re.compile(r"(?<!self)(?<!cls)\b[a-zA-Z0-9_]+\._[a-zA-Z0-9_]+\b"),
+        "regex": re.compile(r"\b(?!(?:self|cls)\b)[a-zA-Z0-9_]+\._(?!_)[a-zA-Z0-9_]+\b"),
     },
     {
         "id": "TEST_FLAKY_SLEEP",
@@ -219,11 +219,17 @@ UNIVERSAL_RULES = [
     },
 ]
 
-# Suppression comment regexes
+# Suppression comment regexes (line and file level)
 SUPPRESSION_PATTERNS = [
-    re.compile(r"#\s*codeguard\s*:\s*ignore\[([a-zA-Z0-9_,\s]+)\]"),
-    re.compile(r"//\s*codeguard-ignore\s+([a-zA-Z0-9_,\s]+)"),
-    re.compile(r"<!--\s*codeguard-ignore\s+([a-zA-Z0-9_,\s]+)\s*-->"),
+    re.compile(r"#\s*codeguard\s*:\s*(?:ignore|disable)\[([a-zA-Z0-9_,\s]+)\]"),
+    re.compile(r"//\s*codeguard-(?:ignore|disable)\s+([a-zA-Z0-9_,\s]+)"),
+    re.compile(r"<!--\s*codeguard-(?:ignore|disable)\s+([a-zA-Z0-9_,\s]+)\s*-->"),
+]
+
+FILE_SUPPRESSION_PATTERNS = [
+    re.compile(r"#\s*codeguard\s*:\s*(?:ignore-file|disable-file|disable)[=\[]\s*([a-zA-Z0-9_,\s]+)\]?"),
+    re.compile(r"//\s*codeguard-(?:ignore-file|disable-file|disable)\s+([a-zA-Z0-9_,\s]+)"),
+    re.compile(r"<!--\s*codeguard-(?:ignore-file|disable-file|disable)\s+([a-zA-Z0-9_,\s]+)\s*-->"),
 ]
 
 CODE_EXTENSIONS = {
@@ -231,7 +237,47 @@ CODE_EXTENSIONS = {
     ".h", ".hpp", ".rb", ".php", ".cs", ".swift", ".kt", ".scala", ".sh", ".bash"
 }
 
-TEST_DIR_PATTERNS = ["/test/", "/tests/", "/spec/", "/specs/", "test_", "_test.", ".spec."]
+TEST_DIR_PATTERNS = [
+    "/test/", "/tests/", "/spec/", "/specs/", "/fixtures/", "/mocks/",
+    "test_", "_test.", ".spec.", "fixture_", "mock_"
+]
+
+COMPAT_FILE_PATTERNS = [
+    "compat.py", "_compat.py", "/compat/",
+    "shim.py", "_shim.py", "shims.py", "/shims/",
+    "patch.py", "_patch.py", "patches.py", "/patches/",
+    "polyfill.py", "polyfills.py", "/polyfills/",
+    "/vendor/", "vendor.py"
+]
+
+STDLIB_AND_FRAMEWORK_WHITELIST_NAMES = {
+    "argparse", "sys", "os", "typing", "dataclasses", "inspect", "unittest",
+    "mock", "ctypes", "threading", "multiprocessing", "importlib", "asyncio", "_ast"
+}
+
+STDLIB_PROTECTED_ATTRS = {
+    "_SubParsersAction", "_ActionsContainer", "_ArgumentGroup", "_MutuallyExclusiveGroup",
+    "_actions", "_option_string_actions", "_defaults", "_negative_number_matcher",
+    "_getframe", "_current_frames", "_exit",
+    "_GenericAlias", "_SpecialForm", "_MISSING_TYPE",
+    "_mock_return_value", "_mock_self", "_WritelnDecorator",
+    "_fields", "_asdict", "_replace", "_source",  # namedtuple protected methods
+}
+
+EXCLUDED_ATTRIBUTES = {
+    "__name__", "__class__", "__doc__", "__dict__", "__module__", "__mro__",
+    "__qualname__", "__file__", "__path__", "__package__", "__wrapped__"
+}
+
+
+def is_compat_file(file_path: str) -> bool:
+    normalized = (file_path or "").lower().replace("\\", "/")
+    return any(p in normalized for p in COMPAT_FILE_PATTERNS)
+
+
+def is_test_file(file_path: str) -> bool:
+    normalized = (file_path or "").lower().replace("\\", "/")
+    return any(p in normalized for p in TEST_DIR_PATTERNS)
 
 
 def run_git(args: List[str], cwd: str) -> Tuple[int, str, str]:
@@ -257,6 +303,37 @@ def is_suppressed(line: str, rule_id: str) -> bool:
             ignored_rules = [r.strip() for r in match.group(1).split(",")]
             if rule_id in ignored_rules or "all" in ignored_rules:
                 return True
+    return False
+
+
+def extract_file_suppressed_rules(content_or_lines: Union[str, List[str]]) -> Set[str]:
+    lines = content_or_lines if isinstance(content_or_lines, list) else content_or_lines.splitlines()[:25]
+    suppressed = set()
+    for line in lines[:25]:
+        for pattern in FILE_SUPPRESSION_PATTERNS:
+            match = pattern.search(line)
+            if match:
+                for r in match.group(1).split(","):
+                    suppressed.add(r.strip())
+    return suppressed
+
+
+def is_file_suppressed(content: str, rule_id: str) -> bool:
+    suppressed = extract_file_suppressed_rules(content)
+    return rule_id in suppressed or "all" in suppressed
+
+
+def is_config_ignored(config: Dict[str, Any], file_path: str, rule_id: str) -> bool:
+    ignores = config.get("ignore", {})
+    normalized = file_path.replace("\\", "/")
+    for pattern, rules in ignores.items():
+        if pattern == normalized or (pattern.endswith("/") and normalized.startswith(pattern)) or (pattern in normalized):
+            if isinstance(rules, list):
+                if rule_id in rules or "all" in rules:
+                    return True
+            elif isinstance(rules, str):
+                if rule_id == rules or rules == "all":
+                    return True
     return False
 
 
@@ -292,27 +369,55 @@ def compute_violation_fingerprint(v: Dict[str, Any]) -> str:
 # AST & Deep Architectural Verification (Python)
 # ==============================================================================
 
-def verify_python_ast(file_path: str, content: str, pure_paths: List[str], layer_rules: Dict[str, Any]) -> List[Dict[str, Any]]:
+def verify_python_ast(file_path: str, content: str, pure_paths: List[str], layer_rules: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     violations = []
     try:
         tree = ast.parse(content, filename=file_path)
     except SyntaxError:
         return violations
 
-    is_test_file = any(p in file_path.lower() for p in TEST_DIR_PATTERNS)
+    cfg = config or {}
+    lines = content.splitlines()
+
+    is_test = is_test_file(file_path)
+    is_compat = is_compat_file(file_path)
     is_pure_path = any(pure_path in file_path for pure_path in pure_paths) or any(
         kw in file_path.lower() for kw in ["/rules/", "/validators/", "/parsers/"]
     )
 
-    BANNED_PURE_IMPORTS = {"sqlite3", "psycopg2", "sqlalchemy", "requests", "httpx", "aiohttp", "urllib", "subprocess", "socket"}
+    BANNED_PURE_IMPORTS = {"sqlite3", "psycopg2", "sqlalchemy", "requests", "httpx", "aiohttp", "subprocess", "socket"}
+
+    # Find linenos inside `if TYPE_CHECKING:` blocks to avoid flagging static type annotations
+    type_checking_linenos = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.If):
+            test_id = ""
+            if isinstance(n.test, ast.Name):
+                test_id = n.test.id
+            elif isinstance(n.test, ast.Attribute):
+                test_id = n.test.attr
+            if test_id == "TYPE_CHECKING":
+                for child in ast.walk(n):
+                    if hasattr(child, "lineno"):
+                        type_checking_linenos.add(child.lineno)
+
+    # Collect symbols defined locally in this file (intra-module exemption)
+    locally_defined_symbols = set()
+    for n in ast.walk(tree):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            locally_defined_symbols.add(n.name)
 
     for node in ast.walk(tree):
-        # 1. Check for impure imports inside designated pure domains
-        if is_pure_path:
+        # 1. Check for impure imports inside designated pure domains (skip if in TYPE_CHECKING)
+        if is_pure_path and getattr(node, "lineno", 0) not in type_checking_linenos:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     root_mod = alias.name.split(".")[0]
-                    if root_mod in BANNED_PURE_IMPORTS:
+                    is_impure = root_mod in BANNED_PURE_IMPORTS or alias.name == "urllib.request"
+                    if is_impure:
+                        line_str = lines[node.lineno - 1] if 0 < node.lineno <= len(lines) else ""
+                        if is_suppressed(line_str, "IMPURE_DOMAIN_LOGIC") or is_file_suppressed(content, "IMPURE_DOMAIN_LOGIC") or is_config_ignored(cfg, file_path, "IMPURE_DOMAIN_LOGIC"):
+                            continue
                         violations.append({
                             "rule_id": "IMPURE_DOMAIN_LOGIC",
                             "category": "Pillar 3: Pure Core",
@@ -325,7 +430,11 @@ def verify_python_ast(file_path: str, content: str, pure_paths: List[str], layer
             elif isinstance(node, ast.ImportFrom):
                 if node.module:
                     root_mod = node.module.split(".")[0]
-                    if root_mod in BANNED_PURE_IMPORTS:
+                    is_impure = root_mod in BANNED_PURE_IMPORTS or node.module == "urllib.request"
+                    if is_impure:
+                        line_str = lines[node.lineno - 1] if 0 < node.lineno <= len(lines) else ""
+                        if is_suppressed(line_str, "IMPURE_DOMAIN_LOGIC") or is_file_suppressed(content, "IMPURE_DOMAIN_LOGIC") or is_config_ignored(cfg, file_path, "IMPURE_DOMAIN_LOGIC"):
+                            continue
                         violations.append({
                             "rule_id": "IMPURE_DOMAIN_LOGIC",
                             "category": "Pillar 3: Pure Core",
@@ -337,22 +446,41 @@ def verify_python_ast(file_path: str, content: str, pure_paths: List[str], layer
                         })
 
         # 2. Check for private attribute access across boundaries
-        if not is_test_file and isinstance(node, ast.Attribute):
+        # Automatically exempt test suites and dedicated compat/shim layers
+        if not is_test and not is_compat and isinstance(node, ast.Attribute):
             attr_name = node.attr
             if attr_name.startswith("_") and not attr_name.startswith("__"):
                 # Ignore self._* and cls._*
                 is_internal = False
-                if isinstance(node.value, ast.Name) and node.value.id in ("self", "cls"):
+                if isinstance(node.value, ast.Name):
+                    if node.value.id in ("self", "cls"):
+                        is_internal = True
+                    elif node.value.id in STDLIB_AND_FRAMEWORK_WHITELIST_NAMES:
+                        is_internal = True
+                elif isinstance(node.value, ast.Attribute):
+                    if node.value.attr in STDLIB_AND_FRAMEWORK_WHITELIST_NAMES:
+                        is_internal = True
+
+                # Check if attribute is in stdlib protected attributes or dunders
+                if attr_name in STDLIB_PROTECTED_ATTRS or attr_name in EXCLUDED_ATTRIBUTES:
                     is_internal = True
+
+                # Check if symbol is defined locally in the same file
+                if attr_name in locally_defined_symbols:
+                    is_internal = True
+
                 if not is_internal:
+                    line_str = lines[node.lineno - 1] if 0 < node.lineno <= len(lines) else ""
+                    if is_suppressed(line_str, "PRIVATE_STATE_LEAK") or is_file_suppressed(content, "PRIVATE_STATE_LEAK") or is_config_ignored(cfg, file_path, "PRIVATE_STATE_LEAK"):
+                        continue
                     violations.append({
                         "rule_id": "PRIVATE_STATE_LEAK",
                         "category": "Pillar 3: Architecture & Seams",
-                        "severity": "BLOCK",
+                        "severity": "WARN",
                         "file": file_path,
                         "line": node.lineno,
                         "line_content": f".{attr_name}",
-                        "description": f"Accessing private member '{attr_name}' from outside its owning class (violates Clean Seams).",
+                        "description": f"Accessing private member '{attr_name}' across module boundary (violates Clean Seams).",
                     })
 
     return violations
@@ -399,8 +527,7 @@ def audit_diff(diff_text: str, untracked_files: List[str], cwd: str, config: Dic
     violations = []
     current_file = None
     line_num = 0
-    is_code = True
-    pure_paths = config.get("pure_paths", ["rules/", "validators/", "parsers/", "schemas/"])
+    current_file_suppressions: Set[str] = set()
 
     for raw_line in diff_text.splitlines():
         if raw_line.startswith("diff --git "):
@@ -409,6 +536,15 @@ def audit_diff(diff_text: str, untracked_files: List[str], cwd: str, config: Dic
             ext = os.path.splitext(current_file)[1].lower()
             is_code = ext in CODE_EXTENSIONS
             line_num = 0
+            full_p = Path(cwd) / current_file
+            if full_p.is_file():
+                try:
+                    file_head = full_p.read_text(encoding="utf-8", errors="replace")[:1000]
+                    current_file_suppressions = extract_file_suppressed_rules(file_head)
+                except Exception:
+                    current_file_suppressions = set()
+            else:
+                current_file_suppressions = set()
             continue
         elif raw_line.startswith("@@"):
             match = re.search(r"\+(\d+)", raw_line)
@@ -422,7 +558,11 @@ def audit_diff(diff_text: str, untracked_files: List[str], cwd: str, config: Dic
             # Check Universal Heuristic Rules
             for rule in UNIVERSAL_RULES:
                 rule_id = rule["id"]
+                if rule_id in current_file_suppressions or "all" in current_file_suppressions:
+                    continue
                 if is_suppressed(added_line, rule_id):
+                    continue
+                if current_file and is_config_ignored(config, current_file, rule_id):
                     continue
                 if rule.get("code_only") and not is_code:
                     continue
@@ -437,10 +577,17 @@ def audit_diff(diff_text: str, untracked_files: List[str], cwd: str, config: Dic
                     if "migration" in (current_file or "").lower() or "schema" in (current_file or "").lower():
                         continue
                 if rule_id == "TEST_FLAKY_SLEEP":
-                    if not any(tp in (current_file or "").lower() for tp in TEST_DIR_PATTERNS):
+                    if not is_test_file(current_file or ""):
                         continue
                 if rule_id == "PRIVATE_STATE_LEAK_REGEX":
-                    if any(tp in (current_file or "").lower() for tp in TEST_DIR_PATTERNS):
+                    if is_test_file(current_file or "") or is_compat_file(current_file or ""):
+                        continue
+                    if any(attr in added_line for attr in STDLIB_PROTECTED_ATTRS):
+                        continue
+                    if any(f"{mod}._" in added_line for mod in STDLIB_AND_FRAMEWORK_WHITELIST_NAMES):
+                        continue
+                if rule_id.startswith("SECRET_"):
+                    if is_test_file(current_file or "") or "test-fixture" in added_line.lower():
                         continue
                 if rule_id == "DEBUG_PYTHON_PRINT":
                     if "file=sys.std" in added_line or (current_file and ("code_guard.py" in current_file or "install_hook.py" in current_file)):
@@ -534,17 +681,27 @@ def audit_whole_codebase(target_dir: str, cwd: str, config: Dict[str, Any]) -> T
     total_files = 0
     total_loc = 0
 
-    IGNORED_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", "dist", "build", ".next", ".tox", "assets"}
+    IGNORED_DIRS = {
+        ".git", "node_modules", ".venv", "venv", "__pycache__", "dist", "build",
+        ".next", ".tox", "assets", "reports", "exports", "site-packages",
+        "coverage", ".pytest_cache", ".ruff_cache", ".mypy_cache"
+    }
 
     for root, dirs, files in os.walk(root_path):
-        dirs[:] = [d for d in dirs if d not in IGNORED_DIRS and not d.startswith(".")]
+        dirs[:] = [
+            d for d in dirs
+            if d not in IGNORED_DIRS
+            and not d.startswith(".")
+            and not d.endswith(".egg-info")
+            and not d.endswith(".dist-info")
+        ]
         for file in files:
             ext = os.path.splitext(file)[1].lower()
             if ext not in CODE_EXTENSIONS:
                 continue
 
             file_path = os.path.join(root, file)
-            rel_path = os.path.relpath(file_path, cwd)
+            rel_path = os.path.relpath(file_path, root_path)
             total_files += 1
 
             try:
@@ -557,14 +714,17 @@ def audit_whole_codebase(target_dir: str, cwd: str, config: Dict[str, Any]) -> T
 
             # 1. Check Python AST for pure domain and private state leaks
             if ext == ".py":
-                ast_violations = verify_python_ast(rel_path, content, pure_paths, layer_rules)
+                ast_violations = verify_python_ast(rel_path, content, pure_paths, layer_rules, config)
                 violations.extend(ast_violations)
 
             # 2. Universal Heuristic Check
+            file_suppressed = extract_file_suppressed_rules(lines)
             for idx, line in enumerate(lines, start=1):
                 for rule in UNIVERSAL_RULES:
                     rule_id = rule["id"]
-                    if is_suppressed(line, rule_id):
+                    if rule_id in file_suppressed or "all" in file_suppressed:
+                        continue
+                    if is_suppressed(line, rule_id) or is_config_ignored(config, rel_path, rule_id):
                         continue
                     if rule.get("code_only") and ext not in CODE_EXTENSIONS:
                         continue
@@ -575,10 +735,24 @@ def audit_whole_codebase(target_dir: str, cwd: str, config: Dict[str, Any]) -> T
                     if "re.compile(" in line or '"regex":' in line or '"description":' in line:
                         continue
 
-                    if rule_id == "TEST_FLAKY_SLEEP" and not any(tp in rel_path.lower() for tp in TEST_DIR_PATTERNS):
+                    # Skip secrets in test files or mock data
+                    if rule_id.startswith("SECRET_") and (is_test_file(rel_path) or "test-fixture" in line.lower()):
                         continue
-                    if rule_id == "PRIVATE_STATE_LEAK_REGEX" and any(tp in rel_path.lower() for tp in TEST_DIR_PATTERNS):
+
+                    # If file is Python, verify_python_ast already handles private attribute checking with full AST semantics;
+                    # skip regex check on Python files to avoid duplicate reporting.
+                    if rule_id == "PRIVATE_STATE_LEAK_REGEX" and ext == ".py":
                         continue
+
+                    if rule_id == "TEST_FLAKY_SLEEP" and not is_test_file(rel_path):
+                        continue
+                    if rule_id == "PRIVATE_STATE_LEAK_REGEX":
+                        if is_test_file(rel_path) or is_compat_file(rel_path):
+                            continue
+                        if any(attr in line for attr in STDLIB_PROTECTED_ATTRS):
+                            continue
+                        if any(f"{mod}._" in line for mod in STDLIB_AND_FRAMEWORK_WHITELIST_NAMES):
+                            continue
                     if rule_id == "DEBUG_PYTHON_PRINT":
                         if "file=sys.std" in line or "code_guard.py" in rel_path or "install_hook.py" in rel_path:
                             continue
@@ -619,11 +793,15 @@ def main():
 
     args = parser.parse_args()
     cwd = os.getcwd()
-    config = load_codeguard_config(cwd)
 
     # If --scope full is requested, route to codebase mode
     if args.scope == "full":
         args.mode = "codebase"
+
+    target_path = Path(args.path).resolve() if args.mode == "codebase" else Path(cwd).resolve()
+    config = load_codeguard_config(str(target_path))
+    if not config and str(target_path) != str(cwd):
+        config = load_codeguard_config(cwd)
 
     violations: List[Dict[str, Any]] = []
     summary_metrics: Dict[str, Any] = {}
@@ -640,11 +818,11 @@ def main():
             "untracked_count": len(diff_info["untracked_files"]),
         }
     else:
-        violations, codebase_metrics = audit_whole_codebase(args.path, cwd, config)
-        hotspots = analyze_git_hotspots(cwd) if args.hotspots else []
+        violations, codebase_metrics = audit_whole_codebase(str(target_path), cwd, config)
+        hotspots = analyze_git_hotspots(str(target_path)) if args.hotspots else []
         summary_metrics = {
             "mode": "codebase",
-            "path": args.path,
+            "path": str(target_path),
             **codebase_metrics,
             "hotspots": hotspots,
         }
@@ -670,6 +848,14 @@ def main():
     blocker_count = sum(1 for v in violations if v["severity"] == "BLOCK")
     warning_count = sum(1 for v in violations if v["severity"] == "WARN")
 
+    # Normalized Architectural Health Score (0 - 100)
+    # Deduct per offending file to prevent a single file from collapsing the score
+    blocker_files = len(set(v["file"] for v in violations if v["severity"] == "BLOCK"))
+    warning_files = len(set(v["file"] for v in violations if v["severity"] == "WARN"))
+    total_penalty = min(blocker_files * 10, 50) + min(warning_files * 2, 25)
+    health_score = max(100 - total_penalty, 0)
+    summary_metrics["health_score"] = health_score
+
     if blocker_count > 0:
         verdict = "BLOCK"
     elif warning_count > 0:
@@ -679,6 +865,7 @@ def main():
 
     output_payload = {
         "verdict": verdict,
+        "health_score": health_score,
         "blockers": blocker_count,
         "warnings": warning_count,
         "metrics": summary_metrics,
@@ -690,6 +877,7 @@ def main():
     else:
         print("=" * 70)
         print(f"CODE GUARD AUDIT REPORT [{args.mode.upper()} MODE] - Verdict: {verdict}")
+        print(f"Architectural Health Score: {health_score} / 100")
         print("=" * 70)
         print(f"Critical Blockers: {blocker_count} | Warnings: {warning_count}")
         if violations:
